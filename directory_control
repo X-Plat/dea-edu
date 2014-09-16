@@ -1,0 +1,4 @@
+export PATH=/home/work/ruby193/bin:/home/work/opdir/go/bin/:$PATH
+export GOROOT=/home/work/opdir/go
+
+nohup bundle exec rake dir_server:run &

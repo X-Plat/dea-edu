@@ -1,0 +1,46 @@
+module Dea
+  class DatabaseUriGenerator
+    VALID_DB_TYPES = %w[mysql mysql2 postgres postgresql].freeze
+    RAILS_STYLE_DATABASE_TO_ADAPTER_MAPPING = {
+      'mysql' => 'mysql2',
+      'postgresql' => 'postgres'
+    }.freeze
+
+    def initialize(services)
+      @services = services || []
+    end
+
+    def database_uri
+      convert_scheme_to_rails_style_adapter(bound_database_uri).to_s if bound_database_uri
+    end
+
+    private
+
+    def bound_database_uri
+      if bound_relational_valid_databases.any?
+        bound_relational_valid_databases.first[:uri]
+      else
+        nil
+      end
+    end
+
+    def bound_relational_valid_databases
+      @bound_relational_valid_databases ||= @services.inject([]) do |collection, binding|
+        begin
+          if binding["credentials"]["uri"]
+            uri = URI.parse(binding["credentials"]["uri"])
+            collection << {uri: uri, name: binding["name"]} if VALID_DB_TYPES.include?(uri.scheme)
+          end
+        rescue URI::InvalidURIError => e
+          raise URI::InvalidURIError, "Invalid database uri: #{binding["credentials"]["uri"].gsub(/\/\/.+@/, '//USER_NAME_PASS@')}"
+        end
+        collection
+      end
+    end
+
+    def convert_scheme_to_rails_style_adapter(uri)
+      uri.scheme = RAILS_STYLE_DATABASE_TO_ADAPTER_MAPPING[uri.scheme] if RAILS_STYLE_DATABASE_TO_ADAPTER_MAPPING[uri.scheme]
+      uri
+    end
+  end
+end
